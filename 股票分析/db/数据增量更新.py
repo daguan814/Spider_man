@@ -4,37 +4,43 @@ Author: Shuijing
 Description:  缺少多少天的，就会更新多少天的。几天不更新，运行一次，一次更新所有的数据
 """
 
-import pymysql
 import tushare as ts
 import pandas as pd
 from datetime import datetime, timedelta
+from sqlalchemy import create_engine
 
-# MySQL数据库连接配置
+# ======================
+# MySQL数据库配置 (SQLAlchemy)
+# ======================
 DB_CONFIG = {
-    'host': '127.0.0.1',
-    'port': 3306,
     'user': 'root',
     'password': 'Lhf134652',
+    'host': '127.0.0.1',
+    'port': 3306,
     'database': 'stock',
     'charset': 'utf8mb4'
 }
 
+DB_URI = (
+    f"mysql+pymysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
+    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}?charset={DB_CONFIG['charset']}"
+)
+
+# ======================
+# Tushare 初始化
+# ======================
 ts.set_token("0849ef1ef12463b055e298928b6a8286b2d478c365405d27ef50b629")
 pro = ts.pro_api()
 
 try:
-    # 连接MySQL数据库
-    conn = pymysql.connect(**DB_CONFIG)
-    print("✅ MySQL数据库连接成功")
+    # 创建SQLAlchemy引擎
+    engine = create_engine(DB_URI)
+    print("✅ MySQL数据库连接成功 (SQLAlchemy)")
 
     # ======================
     # 1. 查数据库最新交易日
     # ======================
-    last_date_df = pd.read_sql(
-        "SELECT MAX(trade_date) AS last_date FROM daily_kline",
-        conn
-    )
-
+    last_date_df = pd.read_sql("SELECT MAX(trade_date) AS last_date FROM daily_kline", engine)
     last_date = last_date_df.loc[0, "last_date"]
 
     if last_date is None:
@@ -81,10 +87,10 @@ try:
             ]
         ]
 
-        # 使用pandas的to_sql方法插入数据到MySQL
+        # 使用 SQLAlchemy engine 插入数据
         df.to_sql(
             "daily_kline",
-            conn,
+            engine,
             if_exists="append",
             index=False
         )
@@ -93,17 +99,9 @@ try:
 
     print("✅ 日线数据高速增量完成")
 
-except pymysql.Error as e:
-    print(f"❌ MySQL数据库连接失败: {e}")
-    print("请检查：")
-    print("1. MySQL服务是否启动")
-    print("2. 数据库连接信息是否正确")
-    print("3. 是否安装了pymysql库 (pip install pymysql)")
-
 except Exception as e:
-    print(f"❌ 发生未知错误: {e}")
+    print(f"❌ 发生错误: {e}")
 
 finally:
-    if 'conn' in locals() and conn:
-        conn.close()
-        print("✅ 数据库连接已关闭")
+    # SQLAlchemy engine 不需要像 pymysql 一样手动关闭连接
+    print("✅ 数据库操作完成")

@@ -1,48 +1,42 @@
-import pymysql
+from sqlalchemy import create_engine
 import pandas as pd
 
 
 class AnnualPctStrategy:
-    """策略：统计2025年全年累计涨跌幅，并显示股票名称和板块，返回按涨幅排序结果"""
+    """策略：统计2025年全年累计涨跌幅，并显示股票名称和板块，返回按涨幅排序结果（SQLAlchemy版）"""
 
-    def __init__(self, db_config=None):
-        # MySQL数据库连接配置
-        if db_config is None:
-            self.db_config = {
-                'host': '127.0.0.1',
-                'port': 3306,
-                'user': 'root',
-                'password': 'Lhf134652',
-                'database': 'stock',
-                'charset': 'utf8mb4'
-            }
+    def __init__(self, db_url=None):
+        """
+        db_url 示例：
+        'mysql+pymysql://root:密码@127.0.0.1:3306/stock?charset=utf8mb4'
+        """
+        if db_url is None:
+            self.db_url = "mysql+pymysql://root:Lhf134652@127.0.0.1:3306/stock?charset=utf8mb4"
         else:
-            self.db_config = db_config
+            self.db_url = db_url
 
         self.name = "2025年全年涨跌幅统计"
         self.description = "计算2025年每只股票年初到年末的累计涨跌幅，并显示名称和板块，按涨幅排序"
-
-        # 涨跌幅阈值
         self.thresholds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
     def execute(self):
         try:
-            # 连接MySQL数据库
-            conn = pymysql.connect(**self.db_config)
-            print("✅ MySQL数据库连接成功")
+            # 创建 SQLAlchemy engine
+            engine = create_engine(self.db_url)
+            print("✅ 数据库连接成功（SQLAlchemy）")
 
             # 查询2025年所有日线
             df = pd.read_sql(
                 "SELECT ts_code, trade_date, close FROM daily_kline "
                 "WHERE trade_date BETWEEN '20250101' AND '20251231'",
-                conn
+                engine
             )
             if df.empty:
                 print("❌ 没有找到2025年的日线数据")
                 return pd.DataFrame()
 
             # 查询股票名称和板块
-            stock_info = pd.read_sql("SELECT ts_code, name, industry FROM stock_basic", conn)
+            stock_info = pd.read_sql("SELECT ts_code, name, industry FROM stock_basic", engine)
 
             # 找每只股票年初收盘价和年末收盘价
             first_day = df.groupby('ts_code')['trade_date'].min().reset_index()
@@ -62,7 +56,7 @@ class AnnualPctStrategy:
             # 合并股票信息
             merged = pd.merge(merged, stock_info, on='ts_code', how='left')
 
-            # 按全年涨跌幅排序（涨幅最大排前，跌幅最大负值排后）
+            # 按全年涨跌幅排序
             merged_sorted = merged.sort_values(by='pct_chg', ascending=False).reset_index(drop=True)
 
             # 打印阈值统计
@@ -94,25 +88,13 @@ class AnnualPctStrategy:
             # 返回按涨幅排序的完整表格
             return merged_sorted[['ts_code', 'name', 'industry', 'close_start', 'close_end', 'pct_chg']]
 
-        except pymysql.Error as e:
-            print(f"❌ MySQL数据库连接失败: {e}")
-            print("请检查：")
-            print("1. MySQL服务是否启动")
-            print("2. 数据库连接信息是否正确")
-            print("3. 是否安装了pymysql库 (pip install pymysql)")
-            return pd.DataFrame()
         except Exception as e:
             print(f"❌ 策略执行出错: {e}")
             return pd.DataFrame()
-        finally:
-            if 'conn' in locals() and conn:
-                conn.close()
-                print("✅ 数据库连接已关闭")
 
 
 # 独立运行示例
 if __name__ == "__main__":
     strategy = AnnualPctStrategy()
     df_sorted = strategy.execute()
-    # 如果需要可以导出 CSV
-    # df_sorted.to_csv("2025_annual_pct_sorted.csv", index=False)
+    # 不生成 CSV，直接返回 DataFrame 并打印
