@@ -18,27 +18,31 @@ class StockAnalysisSystem:
     def __init__(self):
         self.strategies = {}
         self.strategies_dir = "策略"
-        self.db_path = self.get_db_path()
+        self.db_config = self.get_db_config()
         self.load_strategies()
     
-    def get_db_path(self):
-        """获取数据库文件的绝对路径"""
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        db_path = os.path.join(current_dir, "db", "stock.db")
-        print(f"数据库路径: {db_path}")
+    def get_db_config(self):
+        """获取MySQL数据库连接配置"""
+        db_config = {
+            'host': '127.0.0.1',
+            'port': 3306,
+            'user': 'root',
+            'password': 'Lhf134652',
+            'database': 'stock',
+            'charset': 'utf8mb4'
+        }
         
-        # 检查数据库文件是否存在
-        if not os.path.exists(db_path):
-            print(f"❌ 数据库文件不存在: {db_path}")
-            print("请确保数据库文件已正确放置")
-        else:
-            print("✅ 数据库文件存在")
-            
-        return db_path
+        print("📊 MySQL数据库配置:")
+        print(f"  主机: {db_config['host']}")
+        print(f"  端口: {db_config['port']}")
+        print(f"  数据库: {db_config['database']}")
+        print(f"  用户名: {db_config['user']}")
+        
+        return db_config
     
     def load_strategies(self):
         """自动发现并加载策略文件夹中的所有策略"""
-        print("🔍 正在扫描策略文件夹...")
+        print("\n🔍 正在扫描策略文件夹...")
         
         # 获取策略文件夹路径
         strategies_path = os.path.join(os.path.dirname(__file__), self.strategies_dir)
@@ -74,11 +78,11 @@ class StockAnalysisSystem:
                         attr_name.endswith('Strategy') and 
                         attr_name != 'Strategy'):
                         
-                        # 实例化策略类并传递数据库路径
+                        # 实例化策略类并传递数据库配置
                         try:
-                            strategy_instance = attr(self.db_path)
+                            strategy_instance = attr(self.db_config)
                         except TypeError:
-                            # 如果策略不接受db_path参数，使用默认构造
+                            # 如果策略不接受db_config参数，使用默认构造
                             strategy_instance = attr()
                             
                         self.strategies[strategy_name] = {

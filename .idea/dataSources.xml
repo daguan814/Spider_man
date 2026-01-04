@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="stock.db" uuid="e64fdf1f-311d-4289-af0d-1179fc3f4c47">
-      <driver-ref>sqlite.xerial</driver-ref>
+    <data-source source="LOCAL" name="stock" uuid="ab78c2f9-c338-44c8-8bb6-db424417c3cc">
+      <driver-ref>mysql.8</driver-ref>
       <synchronize>true</synchronize>
-      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\lu873\PycharmProjects\Spider_man\股票分析\db\stock.db</jdbc-url>
+      <jdbc-driver>com.mysql.cj.jdbc.Driver</jdbc-driver>
+      <jdbc-url>jdbc:mysql://localhost:3306/stock</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

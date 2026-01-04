@@ -1,6 +1,5 @@
-import sqlite3
+import pymysql
 import pandas as pd
-import os
 
 
 class IndustryAnnualPctStrategy:
@@ -8,28 +7,34 @@ class IndustryAnnualPctStrategy:
     统计 2025 年各板块涨跌幅（去极值后平均），用于中长期方向判断
     """
 
-    def __init__(self, db_path=None, trim_pct=0.05):
-        if db_path is None:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            self.db_path = os.path.join(current_dir, "../db/stock.db")
+    def __init__(self, db_config=None, trim_pct=0.05):
+        # MySQL数据库连接配置
+        if db_config is None:
+            self.db_config = {
+                'host': '127.0.0.1',
+                'port': 3306,
+                'user': 'root',
+                'password': 'Lhf134652',
+                'database': 'stock',
+                'charset': 'utf8mb4'
+            }
         else:
-            self.db_path = db_path
+            self.db_config = db_config
 
         self.trim_pct = trim_pct  # 去极值比例（前后 5%）
         self.year = "2025"
+        self.name = "2025板块分析"
+        self.description = "统计2025年各板块涨跌幅（去极值后平均）"
 
     def execute(self) -> pd.DataFrame:
         print(f"\n🎯 执行策略: {self.year}年板块年度涨跌幅统计（去极值）")
         print("-" * 60)
-        print(f"数据库路径: {self.db_path}\n")
-
-        if not os.path.exists(self.db_path):
-            print("❌ 数据库文件不存在")
-            return pd.DataFrame()
-
-        conn = sqlite3.connect(self.db_path)
 
         try:
+            # 连接MySQL数据库
+            conn = pymysql.connect(**self.db_config)
+            print("✅ MySQL数据库连接成功")
+
             # === 1. 读取 2025 年日线 ===
             df = pd.read_sql(
                 """
@@ -117,12 +122,20 @@ class IndustryAnnualPctStrategy:
 
             return result_df
 
+        except pymysql.Error as e:
+            print(f"❌ MySQL数据库连接失败: {e}")
+            print("请检查：")
+            print("1. MySQL服务是否启动")
+            print("2. 数据库连接信息是否正确")
+            print("3. 是否安装了pymysql库 (pip install pymysql)")
+            return pd.DataFrame()
         except Exception as e:
             print(f"❌ 策略执行异常: {e}")
             return pd.DataFrame()
-
         finally:
-            conn.close()
+            if 'conn' in locals() and conn:
+                conn.close()
+                print("✅ 数据库连接已关闭")
 
     @staticmethod
     def pretty_print(df: pd.DataFrame, top_n=50, bottom_n=20):

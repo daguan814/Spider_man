@@ -1,17 +1,23 @@
-import sqlite3
+import pymysql
 import pandas as pd
-import os
 
 
 class AnnualPctStrategy:
     """策略：统计2025年全年累计涨跌幅，并显示股票名称和板块，返回按涨幅排序结果"""
 
-    def __init__(self, db_path=None):
-        if db_path is None:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            self.db_path = os.path.join(current_dir, "../db/stock.db")
+    def __init__(self, db_config=None):
+        # MySQL数据库连接配置
+        if db_config is None:
+            self.db_config = {
+                'host': '127.0.0.1',
+                'port': 3306,
+                'user': 'root',
+                'password': 'Lhf134652',
+                'database': 'stock',
+                'charset': 'utf8mb4'
+            }
         else:
-            self.db_path = db_path
+            self.db_config = db_config
 
         self.name = "2025年全年涨跌幅统计"
         self.description = "计算2025年每只股票年初到年末的累计涨跌幅，并显示名称和板块，按涨幅排序"
@@ -20,14 +26,11 @@ class AnnualPctStrategy:
         self.thresholds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
     def execute(self):
-        print(f"数据库路径: {self.db_path}")
-
-        if not os.path.exists(self.db_path):
-            print(f"❌ 数据库文件不存在: {self.db_path}")
-            return {}
-
-        conn = sqlite3.connect(self.db_path)
         try:
+            # 连接MySQL数据库
+            conn = pymysql.connect(**self.db_config)
+            print("✅ MySQL数据库连接成功")
+
             # 查询2025年所有日线
             df = pd.read_sql(
                 "SELECT ts_code, trade_date, close FROM daily_kline "
@@ -36,7 +39,7 @@ class AnnualPctStrategy:
             )
             if df.empty:
                 print("❌ 没有找到2025年的日线数据")
-                return {}
+                return pd.DataFrame()
 
             # 查询股票名称和板块
             stock_info = pd.read_sql("SELECT ts_code, name, industry FROM stock_basic", conn)
@@ -91,11 +94,20 @@ class AnnualPctStrategy:
             # 返回按涨幅排序的完整表格
             return merged_sorted[['ts_code', 'name', 'industry', 'close_start', 'close_end', 'pct_chg']]
 
+        except pymysql.Error as e:
+            print(f"❌ MySQL数据库连接失败: {e}")
+            print("请检查：")
+            print("1. MySQL服务是否启动")
+            print("2. 数据库连接信息是否正确")
+            print("3. 是否安装了pymysql库 (pip install pymysql)")
+            return pd.DataFrame()
         except Exception as e:
             print(f"❌ 策略执行出错: {e}")
             return pd.DataFrame()
         finally:
-            conn.close()
+            if 'conn' in locals() and conn:
+                conn.close()
+                print("✅ 数据库连接已关闭")
 
 
 # 独立运行示例
